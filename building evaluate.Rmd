@@ -1,0 +1,433 @@
+---
+title: "The Relationship between Security Level and the Building Evaluation Score"
+author: "Jingyu Liu(1005735448)"
+date: December 19, 2021
+output:
+  pdf_document: default
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+library(openintro)
+library(dplyr)
+library(magrittr)
+library(tibble)
+library(ggplot2)
+library(kableExtra)
+library(broom)
+library(cesR)
+library(AER)
+```
+
+
+# Abstract
+
+
+In the report, we are trying to investigate the relationship between security level of a building and the building evaluation score. The report contains 5 main sections: introduction, method, result and conclusion, bibliography or appendix.\
+In the introduction section, we will introduce the background and importance of security level of a building and the building evaluation score, as well as the summary of research question, terminology and hypotheses.\
+There are 6 subsections in the data section: data description, data collection and cleaning process, important variables in the study, numerical summaries and scatter plot of important variables.\
+In the method section, we will discuss the principles and application that are used in our report. We have used the 3 main methods: propensity score matching(psm), logistic regression model, hypothesis test.\
+When we move to the result, based on the method part, we will generate a final logistic regression model that contains predictors and response variable after applying propensity score matching, as well as the relationship between our final model and research question.\
+Last but not least, we will make conclusion of the whole report, this includes: an overall recap of hypotheses, method and result part, the key result of logistic regression model, limitation of the regression model and discussion.\
+Finally, there is a bibliography and appendix shown at the bottom of our report. The appendix includes ethical statements and supplementary materials.\
+
+## Keywords: \
+
+There are 6 keywords contained in the report:\
+
+- Score\
+- Security level\
+- Property type\
+- Year built\
+- Count of units\
+- Evaluated year\
+
+# Introduction
+
+The introduction includes background, importance, research question, terminology and hypotheses 5 sections.
+
+## Background
+
+Nowadays, many people who work or study in the downtown Toronto choose to live at the apartments because we promote a convenient and fast life style. Most of us will ignore the security risks because we are reliable on the building security system. But is it true? The number of households in a building is very large, it increases the difficulty for security to manage the buildings to some extent. Some of the criminals will take advantage of it and break into the apartments easily. A research by Consumer Advocate shows that 65 percent of residential theft happened during daytime when people are busy working. Break-ins also can happen to apartments or cars on property and can lead to serious safety concerns and significant financial losses. In addition, tailgating happens when residents allow unknown people onto the property or walk into a building(Si., 2018). Based on these security questions, the building evaluation score becomes more significant for people who intend to move in an apartment for their further consideration, because evaluation score of a building is the most intuitive way to reflect the overall management of a building. 
+
+## Importance
+
+If we find out what is the aspects that will influence the building evaluation score, then people will increase their awareness on the security level of the buildings that they currently live in, the rate of residential thefts or break-ins will be reduced. And after reading the whole report, the security guards or managers will pay more attention on the cases of apartment thefts, they will enhance the security level during the time when most households are outside of their apartments.
+
+## Research Question
+
+Our goal of the report is to find out the relationship between security Level of a building and the building evaluation score when the building has high security level and normal security level.
+
+## Terminology
+
+- Logistic regression model: Logistic regression is used to predict the probability when the predictors are binary variables. We will apply logistic regression model to predict relationship between condition of security and other impacted factors.\
+
+- Propensity square matching(PSM): When there is confounding variable exists in the logistic regression model, it is a statistical techniques to construct a control group by matching each treated unit with a non-treated unit of similar properties(Heinrich, 2010). This method can help us find the treatment group in our report: the apartments with better condition of security system, and the control group is apartments with almost good condition of security system.\
+
+- Hypothesis test: A Hypothesis test is used to test effectiveness of a regression model(Hoel, P.G.,1971). When the p-value of the variable is smaller than 0.05, the variable is significant to the whole model. Otherwise, the variable is insignificant, which means it didn't have relationship with the response variable. \
+
+
+## Hypotheses
+
+There is a logistic regression relationship between the security Level and the building evaluation score when there is high security level or normal security level. The security level will increase when the building evaluation score increases.
+
+# Data
+
+## Data Description
+
+We will use the data of apartment building evaluation that include information from 2017 to 2021. It is collected from the website Open Data Toronto.The dataset is published by Municipal Licensing & Standards, the original dataset includes 40 variables and 9710 observations, it is last refreshed on Dec 18, 2021. The variables in dataset of apartment building evaluation includes built year of the building, building evaluation score, number of units, security level, laundry level and other 35 variables.
+
+## Data Collection and Data Cleaning
+
+I collect the dataset from the website https://open.toronto.ca/dataset/apartment-building-evaluation/. The drawback of the dataset is that it does not include categorical variable of security level and property type. So it needs to be calculated in data cleaning step. Also, the dataset includes too many variables that are serial number and those variables are useless to our research question, so i will directly use select method to choose the columns that contain important variables in data cleaning part.\
+Firstly, I removed all the missing values from the original dataset. The purpose of doing this is to remove useless values from original dataset. Then I mutate the property type from text 'PRIVATE' to categorical variable 1, this is because the classification of property type is too broad, and we only need to investigate the property type that is privately owned, so I reorganize the variable of property type and set it in 2 categories: privately owned and other property types. Also, the predictor security level is mutated as categorical variable which is 1 when security level is higher than 4, otherwise, it's 0. When I transform a variable into categorical variable with 0 and 1, it's easier to be applied in the regression model.\
+
+```{r,include=FALSE}
+# data cleaning
+s=read.csv('/Users/teresa/Desktop/Apartment\ Building\ Evaluation.csv')
+s1=na.omit(s)
+s1$type=ifelse(s1$PROPERTY_TYPE=='PRIVATE',1,0)
+s1$laundry=ifelse(s1$LAUNDRY_ROOMS>3,1,0)
+s1$SECURITY=ifelse(s1$SECURITY>4,1,0)
+final=s1[,c(3,4,5,11,13,18,24,41,42)]
+final
+table(final$SECURITY)
+```
+
+
+```{r,include=FALSE}
+library(dplyr)
+df=final %>% filter(!is.na(type)) %>%
+  filter(!is.na(YEAR_EVALUATED)) %>%
+  filter(!is.na(YEAR_BUILT)) %>%
+  filter(!is.na(CONFIRMED_UNITS)) %>%
+  filter(!is.na(SCORE)) %>%
+  filter(!is.na(SECURITY)) %>%
+  filter(!is.na(ELEVATORS)) %>%
+  filter(!is.na(laundry)) %>%
+  select(type,YEAR_EVALUATED,YEAR_BUILT,CONFIRMED_UNITS,SCORE,SECURITY,ELEVATORS,laundry)
+table(df$SECURITY)
+```
+
+## Important Variables
+
+Variables | Variable Type | Description |
+--------- | ------------- | ----------- |
+SCORE | numerical | Overall score of the building |
+SECURITY | categorical | Condition of security system |
+YEAR_EVALUATED | numerical | Year of the building evaluation score |
+CONFIRMED UNITS | numerical | Number of units in a building |
+YEAR_BUILT | numerical | Built year of the building |
+PROPERTY_TYPE | categorical | Whether a building is owned privately | \
+
+```{r,include=FALSE}
+summary(final)
+sd(final$type)
+```
+
+## Numerical Summaries
+
+Variables | Min | Mean | Median | Max | s.d. |
+--------- | --- | ---- | ------ | --- | ---- |
+SCORE | 20 | 77.91 | 79 | 99 | 10.23 |
+SECURITY | 0 |0.53 | 1 | 1 | 0.5 |
+YEAR_EVALUATED | 2017 | 2019 | 2019 | 2021 | 1.32 |
+CONFIRMED_UNITS | 11 | 193.5 | 174 | 719 | 108.12 |
+YEAR_BUILT | 1910 | 1972 | 1969 | 2017 | 11.15 |
+PROPERTY_TYPE | 0 | 0.77 | 1 | 1 | 0.42 | \
+
+The table above shows the numerical summaries of: score, security level, year of evaluation, number of units, built year, property type.\
+1) Score: the variable score spread from 20 to 99, it centers around 78. The mean and median of score is very close to each other, and from the standard deviation value, we could find out the value of score is a little far from the mean of score.\
+2) Security: the variable security spread from 0 to 1 because it's a categorical variable. It centers around 0.53. The mean and median of security is very close to each other, and from the standard deviation value, we could find out the value of security is close to the mean of security.\
+3) Year evaluated: the variable year evaluated spread from 2017 to 2019, it centers around 2019. The mean and median of year evaluated is the same, and from the standard deviation value, we could find out the value of year evaluated is very close to the mean of year evaluated.\
+4) Confirmed units: the variable confirmed units spread from 11 to 719, it centers around 193.5. The mean and median of confirmed units is far from each other, and from the standard deviation value, we could find out the value of confirmed units is a very far from the mean of confirmed units.\
+5) Year built: the variable year built spread from 1910 to 2017, it centers around 1972. The mean and median of year built is close to each other, and from the standard deviation value, we could find out the value of year built is far from the mean of it.\
+6) Property type: the variable property type spread from 0 to 1 because it's a categorical variable. It centers around 0.77. The mean and median of score is close to each other, and from the standard deviation value, we could find out the value of property type is very close to the mean of property type.\
+
+
+```{r,echo=FALSE}
+final %>% ggplot(aes(y=SCORE)) +
+  geom_boxplot()+
+  labs(title="Figure 1: Boxplot of Evaluation Score")
+```
+
+This is a box plot of building evaluation score from 2017 to 2021.\
+The shape of this box plot is left-skewed and the center of the box plot is around 80.\
+The spread of the box plot is the IQR of the box plot, which is about 13. Also, the box plot has outliers, and the outliers are smaller than 50.\
+From the boxplot, the information we can get is most building evaluation score reach 80, but there are some buildings that have very low evaluation score. \
+
+```{r,echo=FALSE}
+final %>% ggplot(aes(x=SECURITY))+
+  geom_bar(bins=10,fill="purple",colour="black")+labs(title='Figure 2: Barplot of Security Level')
+```
+This is a bar plot about the security level of buildings that are evaluated. 1 represents the building that have high security level, 0 represents the building is in average security level.\
+The count of high security level buildings reaches 260, compare with the count of building with average security level that are only 230. Apparently, the count of building with high security level are very close to the count of building with average security level.\
+
+
+
+# Methods
+
+
+## Logistic regression model 
+
+In order to analyze the relationship between condition of security level and the evaluation score of apartments, propensity score matching is used to find out if two buildings have similar score of evaluation in condition of high security level or average security level. Firstly, we need to know if every building is in good security level. Since there is confounding variables in the data set like: built year of the buildings, number of confirmed units, condition of elevator, and condition of laundry. These confounding variables will be put into a logistic regression model and we will use this to predict if the building has high or average security level.\
+We have also applied logistic regression model in result part:\
+- $\hat{\beta_0}$: The estimated intercept of the model, and is the estimated log of odds of voting for score of evaluation,it no statistical meaning in this model.\
+- $\hat{\beta_1}$: When there is one unit increase in $x_{evaluateyear}$, we estimated that there is $\hat{\beta_1}$ increase in the log-odds of the response variable score of evaluation of building, with other variables the same.\
+- $\hat{\beta_2}$: The estimated change in log odds for every one unit increase in $x_{builtyear}$ is $\hat{\beta_2}$, remaining all other variables the same.\
+- $\hat{\beta_3}$: The estimated change in log odds for every one unit increase in $x_{units}$ is $\hat{\beta_3}$, remaining all other variables the same.\
+- $\hat{\beta_4}$: The estimated change in log odds for every one unit increase in $x_{security}$ is $\hat{\beta_4}$, remaining all other variables the same.\
+- $\hat{\beta_5}$: The estimated change in log odds for every one unit increase in $x_{propertytype}$ is $\hat{\beta_5}$, remaining all other variables the same.\
+The logistic regression model is as the following: 
+$$ log(\frac{p}{1-p}) = \hat{\beta_0}+\hat{\beta_1}x_{evaluateyear} + \hat{\beta_2}x_{builtyear}$$
+$$\hat{\beta_3}x_{units} +\hat{\beta_4}x_{security}+\hat{\beta_5}x_{propertytype}$$
+
+**Assumption**:\
+1. Assumes linearity of independent variables and log odds.\
+2. The observations need to be independent of each other.\
+3. Requires little multicollinearity among the independent variables.\
+
+
+## Propensity Score Matching 
+
+In the data set, the treatment group is the building which has high security level, while the control group is the building with average security level. The goal of propensity score matching is to create balance between the treatment group and control group. When two buildings have similar probability of containing high security level, in condition of one of the buildings has high security level while the other is not, the method propensity score matching will help match this set of data, then make comparison between the score of evaluation of the building with better security level and the other building with average security level. \
+
+**Assumption** :\
+1. In observational variables, untreated variables can be compared to treated variables, as if the treatment has been fully randomized. \
+2. PSM mimic randomization to overcome issues of selection bias(Elizabeth,S.,2011).\
+
+## Hypothesis Test
+
+Hypothesis test is used to assure if the regression model is valid for further application. In our study, we use the hypothesis test to test the mean of score of evaluation between high level security and average level security. \
+Suppose $\mu_{highsecurity}$ represents the average score of evaluation of building in condition of high level security, and $\mu_{average security}$ is the average score of evaluation of normal level security.\
+The null hypothesis is $$H_0:\mu_{highsecurity}=\mu_{average security}$$,which means the average score of evaluation in condition of high level security and normal level security are the same.\
+The alternative hypothesis is $$H_a:\mu_{highsecurity}>\mu_{averagesecurity}$$,which means average score of evaluation in condition of high level security is higher than normal level security.\
+
+**Assumption** :\
+Assume the sample size is large, the predictors are independent and the difference average score of evaluation between high level security and normal level security are the same.\ 
+
+
+# Results 
+
+We selected 5 predictors that are relevant to the probability of score of evaluation of building, they are listed as the following: year of evaluation, built year, registered units, security level, property type. \
+
+The table of coefficients is shown below:\
+```{r,include=FALSE}
+# Here you can run your methods
+set.seed(448)
+repetitions=900
+simulate_v=rep(NA,repetitions)
+
+test=df %>% group_by(SECURITY) %>%
+  summarise(average=mean(SCORE)) %>%
+  summarise(value=diff(average))
+test=as.numeric(test)
+test
+```
+
+```{r,include=FALSE}
+for(i in 1:repetitions){
+  simulated_d=df %>% mutate(type=sample(SECURITY))
+  svalue=simulated_d %>% group_by(SECURITY) %>%
+  summarise(average=mean(SCORE)) %>%
+  summarise(value=diff(average))
+  simulate_v[i]=as.numeric(svalue)
+}
+sim=tibble(avgdiff=simulate_v)
+#p
+extreme=sim %>% filter(abs(avgdiff) >= abs(test)) %>% summarise(n())
+p=as.numeric(extreme/repetitions)
+p
+```
+
+```{r,include=FALSE}
+propensity_score=glm(SECURITY~YEAR_EVALUATED+YEAR_BUILT+ELEVATORS+CONFIRMED_UNITS,
+                     family=binomial,
+                     data=df)
+df1=augment(propensity_score,
+              data=df,
+              type.predict='response') %>%
+  dplyr::select(-.resid, -.std.resid, -.hat, -.sigma, -.cooksd) %>%
+  arrange(.fitted,SECURITY)
+head(df,n=10)
+#SECURITY,ELEVATORSlaundry,
+```
+
+```{r,include=FALSE}
+library(magrittr)
+library(dplyr)
+df2=df1 %>% mutate(treated=ifelse(SECURITY==0,0,1))
+matches=arm::matching(z=df2$SECURITY,
+                      score=df2$.fitted)
+table(df2$SECURITY)
+```
+
+```{r,include=FALSE}
+library(arm)
+df3=cbind(df2,matches)
+table(final$SECURITY)
+head(df3,n=20)
+```
+
+```{r,include=FALSE}
+library(arm)
+table(df3$treated)
+df_matched=df3 %>%
+  filter(match.ind != 0) %>%
+  dplyr::select(-match.ind, -pairs, -treated)
+head(df_matched)
+```
+
+```{r,include=FALSE}
+# Here you can run your methods
+set.seed(448)
+repetitions=900
+simulate_v=rep(NA,repetitions)
+
+test=df %>% group_by(SECURITY) %>%
+  summarise(prop=mean(type==1)) %>%
+  summarise(value=diff(prop))
+test=as.numeric(test)
+test
+```
+
+```{r,include=FALSE}
+for(i in 1:repetitions){
+  simulated_d=df %>% mutate(type=sample(SECURITY))
+  svalue=simulated_d %>% group_by(SECURITY) %>%
+  summarise(prop=mean(type==1)) %>%
+  summarise(value=diff(prop))
+  simulate_v[i]=as.numeric(svalue)
+}
+sim=tibble(propdiff=simulate_v)
+#p
+extreme=sim %>% filter(abs(propdiff) >= abs(test)) %>% summarise(n())
+p=as.numeric(extreme/repetitions)
+p
+```
+
+```{r,echo=FALSE}
+library(knitr)
+regression=lm(SCORE~YEAR_EVALUATED+YEAR_BUILT+CONFIRMED_UNITS+SECURITY+type,data=df_matched)
+knitr::kable(broom::tidy(regression),caption='Table of Coefficients')
+```
+
+
+## Explanation of Table
+
+- $\hat{\beta_0}$: The estimated intercept of the model, and is the estimated log of odds of voting for score of evaluation,it no statistical meaning in this model.\
+- $\hat{\beta_1}$: When there is one unit increase in $x_{evaluateyear}$, we estimated that there is 1.4065735 increase in the log-odds of the response variable score of evaluation of building, with other variables the same.\
+- $\hat{\beta_2}$: The estimated change in log odds for every one unit increase in $x_{builtyear}$ is 0.2881529, remaining all other variables the same.\
+- $\hat{\beta_3}$: The estimated change in log odds for every one unit increase in $x_{units}$ is 0.0000301, remaining all other variables the same.\
+- $\hat{\beta_4}$: The estimated change in log odds for every one unit increase in $x_{security}$ is 10.2521039, remaining all other variables the same.\
+- $\hat{\beta_5}$: The estimated change in log odds for every one unit increase in $x_{propertytype}$ is 6.7278276, remaining all other variables the same.\
+The logistic regression model is as the following: 
+$$ log(\frac{p}{1-p}) = -3340.3252343+1.4065735x_{evaluateyear} + 0.2881529x_{builtyear}$$
+$$+0.0000301x_{units} +10.2521039x_{security}+6.7278276x_{propertytype}$$
+
+## Result of Propensity Score Matching Model(PSM)
+
+Based on the result of logistic regression model, we could see that the assumptions on the relationship between the response variable: score of evaluated buildings and predictors: year of evaluation, built year, registered units, security level, property type are correlated, all of the coefficients are shown in the model.
+
+
+# Conclusions
+
+## Summary (Hypotheses, Method, Result)
+
+*Hypotheses*:\
+We want to investigate the relationship between building evaluation score and building security level when the building security level is high and when the building security level is normal. 
+
+*Method*:\
+
+By applying hypothesis test, we found out that the test statistic of difference between security level and building evaluation score is 12.52612, while the p-value of hypothesis test is 1, which means we don't have evidence to reject the null hypothesis, which means the building evaluation score of a building with high security level is different from a building with average security level. What's more, the evaluation score of high security level building is higher.\
+
+From the research question, we know that the treatment group is building with high security level and control group is building with average security level, our interested response variable is the building evaluation score. After confirming the treatment, we used the propensity score matching to match a building with high security level and a building with average security level with similar confounding variable: year of evaluation, built year, registered units, property types. These confounding variables were put into a logistic regression model and we used our prediction to form a matching.\
+We want to know which data in treatment group has most similar condition with one of the data in control group, so a matching function is applied. After matching the data set, there were 466 observations with 258 treated group.\
+
+Now we have reached the goal of balancing the treatment group and control group. We want to test if the matching really works, so a hypothesis test is used. \
+We used the predictor property type to do the hypothesis test. From the result of hypothesis test, we could see the p-value is 0.02, which is smaller than 0.05, this implied we matched the treatment group and control group successfully, also, the proportion of building with high security level now is the same as building with average security level after matching.\
+
+*Result*\
+
+In the result part, we used logistic regression model again. But this time, it's used to model the relationship between building evaluation score and building security level. The regression model contains 5 predictors: year of evaluation, built year of the building, registered units of the building, security level(high or average), property type(private or not private owned). 
+
+
+## Key Results
+
+The logistic regression model that indicates  relationship between score of evaluated buildings and the buildings which have high or average security level and other impacted factors: year of evaluation, built year, registered units, property type is as the following:\
+$$ log(\frac{p}{1-p}) = -3340.3252343+1.4065735x_{evaluateyear} + 0.2881529x_{builtyear}$$
+$$+0.0000301x_{units} +10.2521039x_{security}+6.7278276x_{propertytype}$$
+
+From the logistic model we could find out that -3340.3252343 is the log of odds of building evaluation score when the security level is 0, which has no statistical meaning.\
+When there is one unit increase in year of evaluation, we estimated that there is 1.4065735 increase in the log-odds of the response variable score of evaluation of building, with other variables the same.\
+The estimated change in log odds for every one unit increase in built year of building is 0.2881529, remaining all other variables the same.\
+The estimated change in log odds for every one unit increase in registered units in buildings is 0.0000301, remaining all other variables the same.\
+The estimated change in log odds for every one unit increase in security level is 10.2521039.\
+The estimated change in log odds for every one unit increase in property type is 6.7278276, remaining all other variables the same.\
+
+
+## Limitations
+
+When I was selecting the variables for analyzing, I was confused about if it’s better to choose the
+variable that contains more information or the variable that satisfies the research question for the report. I have spend long time thinking about the pros and cons. And finally I decide to use the predictors: year of evaluation, built year of the building, registered units of the building, security level(high or average), property type(private or not private owned).
+
+## Next Steps
+
+I should pay more attention to the data cleaning part next time, and I will create some new columns
+that are more appropriate and correlated to the research question.
+
+## Discussion
+
+From the whole report we could find out the next time if we are busy working or studying outside, or when we are in a long day trip, we should be more aware of the safety of our apartment. To protect our personal property, we could buy a strongbox to keep important stuff inside. Also, we could get an indoor monitor or indoor alarm, so next time when we face the break-in of apartments, the security guards could reached and help me call the police more conveniently, and the investigation will also be more efficient, also, we will have evidence to prove the suspects have break into my condo.
+
+# Bibliography
+
+1. Grolemund, G. (2014, July 16) *Introduction to R Markdown*. RStudio. [https://rmarkdown.rstudio.com/articles_intro.html](https://rmarkdown.rstudio.com/articles_intro.html). (Last Accessed: January 15, 2021) 
+
+2. Dekking, F. M., et al. (2005) *A Modern Introduction to Probability and Statistics: Understanding why and how.* Springer Science & Business Media.
+
+3.  Allaire, J.J., et. el. *References: Introduction to R Markdown*. RStudio. [https://rmarkdown.rstudio.com/docs/](https://rmarkdown.rstudio.com/docs/). (Last Accessed: January 15, 2021) 
+
+4.  Heinrich et al. *Primer for Applying Propensity Score Matching*. [https://dimewiki.worldbank.org/Propensity_Score_Matching].(2010)
+
+5.  Casella, G., Berger, R. L. *Statistical Inference*[https://www.statisticshowto.com/probability-and-statistics/hypothesis-testing/z-test/].Duxbury Press.ISBN 0-534-24312-6. (2002)
+
+6. Hoel, P. G.; Port, S. C. and Stone, C. J. *Introduction to Statistical Theory*.[https://www.statisticshowto.com/probability-and-statistics/hypothesis-testing/] New York: Houghton Mifflin, pp. 52-110. (1971)
+
+7. Elizabeth, S. *The Why, When, and How of Propensity Score Methods for Estimating Causal Effects*[http://www.preventionresearch.org/wp-content/uploads/2011/07/SPR-Propensity-pc-workshop-slides.pdf](2011)
+
+
+
+\newpage
+
+# Appendix
+
+## A1: Ethics Statement
+
+
+The dataset is collected from the website Toronto Open Data. The original dataset contains 40 variables with 9710 observations. The link to the website is https://open.toronto.ca/dataset/apartment-building-evaluation/. The data is an open source that everyone can download. \
+The dataset is cleaned and we have applied the method of logistic regression model, propensity score matching and hypothesis test to assure that the final logistic regression model is appropriate for the research question. Thus, the dataset and final regression model is assured to be reproduced.\
+Our assumption of this report is the average score of evaluation in condition of high level security and normal level security are the same. After applying the method propensity score matching, we have balanced the treatment group: the building with high level security and the control group: the building with average level security. And in the final step of hypothesis test, we have proved the average score of evaluation in condition of high level security and normal level security are the same, thus, the assumption is verified.\
+
+
+## A2:  Materials
+
+
+```{r,echo=FALSE,include=FALSE}
+summary(final)
+knitr::kable(broom::tidy(final),caption='Table of Variables')
+```
+
+
+
+Link to the dataset: https://open.toronto.ca/dataset/apartment-building-evaluation/ from Open Data Toronto.
+
+## Section 2 (Maybe call this "Supplementary Methods" or "Supplementary Plots")\
+
+Supplementary Plot:\
+
+```{r,echo=FALSE}
+final %>% ggplot(aes(x=type))+
+  geom_bar(bins=10,fill="purple",colour="black")+labs(title='Figure 3: Barplot of Property Type')
+```
+
